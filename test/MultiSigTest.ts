@@ -155,6 +155,31 @@ describe("MultiSig", function () {
      });
    });
  });
+  
+  describe("Confirm Transaction Tests", function () {
+    beforeEach(async () => {
+      await contract.addTransaction(accounts[1], 100);
+    });
+
+    describe("from an invalid address", () => {
+      it("should throw an error", async function () {
+        await expectThrow(
+          contract
+            .connect(ethers.provider.getSigner(accounts[3]))
+            .confirmTransaction(0)
+        );
+      });
+    });
+
+    describe("from a valid owner address", () => {
+      it("should not throw an error", async function () {
+        await contract
+          .connect(ethers.provider.getSigner(accounts[2]))
+          .confirmTransaction(0);
+        assert(true);
+      });
+    });
+  });
 
 });
 
