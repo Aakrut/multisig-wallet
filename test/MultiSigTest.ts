@@ -13,7 +13,9 @@ const { abi } = JSON.parse(fs.readFileSync(jsonLoc).toString());
 describe("MultiSig", function () {
   let contract:any;
   let accounts:any;
-  let MultiSig:any;
+  let MultiSig: any;
+  let zero = ethers.constants.AddressZero;
+  
   before(async () => {
     MultiSig = await ethers.getContractFactory("MultiSig");
     accounts = await ethers.provider.listAccounts();
@@ -56,32 +58,66 @@ describe("MultiSig", function () {
       await expectThrow(MultiSig.deploy(accounts.slice(0, 3), 4));
     });
   });
-});
 
-describe("MultiSig", function () {
-  it("should define the transaction count", async function () {
-    const transactionCount = abi.filter(
-      (x) => x.name === "transactionCount"
-    )[0];
-    assert(transactionCount, errors[0]);
-    assert.deepEqual(
-      transactionCount.outputs.map((x) => x.type),
-      ["uint256"]
-    );
-  });
 
-  it("should define a transactions mapping or array", async function () {
-    const transactions = abi.filter((x) => x.name === "transactions")[0];
-    assert(transactions, errors[1]);
-    assert.deepEqual(
-      transactions.inputs.map((x) => x.type),
-      ["uint256"]
-    );
-    assert.deepEqual(
-      transactions.outputs.map((x) => x.type),
-      ["address", "uint256", "bool"]
-    );
-  });
+    it("should define the transaction count", async function () {
+      const transactionCount = abi.filter(
+        (x:any) => x.name === "transactionCount"
+      )[0];
+      assert(transactionCount, errors[0]);
+      assert.deepEqual(
+        transactionCount.outputs.map((x:any) => x.type),
+        ["uint256"]
+      );
+    });
+
+    it("should define a transactions mapping or array", async function () {
+      const transactions = abi.filter((x:any) => x.name === "transactions")[0];
+      assert(transactions, errors[1]);
+      assert.deepEqual(
+        transactions.inputs.map((x:any) => x.type),
+        ["uint256"]
+      );
+      assert.deepEqual(
+        transactions.outputs.map((x:any) => x.type),
+        ["address", "uint256", "bool"]
+      );
+    });
+  
+  
+
+  describe("Add Transaction Tests", function () {
+       let _required = 2;
+     beforeEach(async () => {
+       accounts = await ethers.provider.listAccounts();
+       const MultiSig = await ethers.getContractFactory("MultiSig");
+       contract = await MultiSig.deploy(accounts.slice(0, 3), _required);
+       await contract.deployed();
+     });
+
+     it("should create a new Transaction", async function () {
+       await contract.addTransaction(accounts[1], 100);
+
+       let tx = await contract.callStatic.transactions;
+       let address = tx[0];
+       assert.notEqual(address, zero);
+     });
+
+     it("should keep count of the amount of transactions", async function () {
+       await contract.addTransaction(accounts[1], 100);
+
+       let txCount = await contract.callStatic.transactionCount();
+       assert.equal(txCount.toNumber(), 1);
+     });
+
+     it("should return a transaction id", async function () {
+       await contract.addTransaction(accounts[1], 100);
+
+       let txId = await contract.callStatic.addTransaction(accounts[1], 100);
+
+       assert.equal(txId.toNumber(), 1);
+     });
+   });
 });
 
 

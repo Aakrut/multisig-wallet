@@ -23,5 +23,11 @@ contract MultiSig {
         required = _confirmations;
     }
 
+    function addTransaction(address _destination,uint _value) public  returns(uint) {
+        transactions[transactionCount] =     Transaction(_destination,_value,false);
+        transactionCount+=1;
+        return transactionCount -1;
+    }
+
     receive() external payable {}
 }
