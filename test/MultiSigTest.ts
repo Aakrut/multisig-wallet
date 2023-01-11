@@ -17,11 +17,14 @@ describe("MultiSig", function () {
   let signer1: any;
   let accounts:any;
   let MultiSig: any;
+  
   let zero = ethers.constants.AddressZero;
   
   before(async () => {
     MultiSig = await ethers.getContractFactory("MultiSig");
     accounts = await ethers.provider.listAccounts();
+
+    
   });
 
   describe("for a valid multisig", () => {
@@ -146,114 +149,121 @@ describe("MultiSig", function () {
     });
   });
 
-  describe("Confirmed Tests", function () {
-    beforeEach(async () => {
-      let _required = 2;
-      accounts = await ethers.provider.listAccounts();
-      const MultiSig = await ethers.getContractFactory("MultiSig");
-      contract = await MultiSig.deploy(accounts.slice(0, 3), _required);
-      await contract.deployed();
-    });
-
-    it("should return true if the required threshold is met for a transaction", async function () {
-      await contract.submitTransaction(accounts[1], 100);
-
-      await contract
-        .connect(ethers.provider.getSigner(accounts[1]))
-        .confirmTransaction(0);
-      const confirmed = await contract.callStatic.isConfirmed(0);
-
-      assert.equal(confirmed, true);
-    });
-
-    it("should return false if the required threshold is not met for a transaction", async function () {
-      await contract.submitTransaction(accounts[1], 100);
-
-      let confirmed = await contract.callStatic.isConfirmed(0);
-
-      assert.equal(confirmed, false);
-    });
-  });
-
-
-   describe("Execute Transaction Tests", function () {
-     beforeEach(async () => {
-       let _required = 2;
-       accounts = await ethers.provider.listAccounts();
-       const MultiSig = await ethers.getContractFactory("MultiSig");
-       contract = await MultiSig.deploy(accounts.slice(0, 3), _required);
-       await contract.deployed();
-       signer1 = ethers.provider.getSigner(accounts[1]);
-     });
-
-     it("should execute a transaction if confirmation threshold is met", async function () {
-       const value = ethers.utils.parseEther("1");
-       await signer1.sendTransaction({ to: contract.address, value });
-       await contract.submitTransaction(
-         accounts[1],
-         ethers.utils.parseEther(".5")
-       );
-
-       await contract.connect(signer1).confirmTransaction(0);
-       await contract.connect(signer1).executeTransaction(0);
-       let txn = await contract.callStatic.transactions(0);
-       assert.equal(txn[2], true, "Expected `executed` bool to be true!");
-     });
-
-     it("should not execute a transaction if confirmation threshold is not met", async function () {
-       const value = ethers.utils.parseEther("1");
-       await signer1.sendTransaction({ to: contract.address, value });
-       await contract.submitTransaction(
-         accounts[1],
-         ethers.utils.parseEther(".5")
-       );
-
-       await expectThrow(contract.executeTransaction(0));
-     });
-
-     it("should transfer funds to the beneficiary", async function () {
-       const value = ethers.utils.parseEther("1");
-       const transferValue = ethers.utils.parseEther(".5");
-       const recipient = accounts[2];
-
-       const balanceBefore = await ethers.provider.getBalance(recipient);
-       const contractBalanceBefore = await ethers.provider.getBalance(
-         contract.address
-       );
-
-       await signer1.sendTransaction({ to: contract.address, value });
-       await contract.submitTransaction(recipient, transferValue);
-       await contract.connect(signer1).confirmTransaction(0);
-       await contract.connect(signer1).executeTransaction(0);
-
-       const balanceAfter = await ethers.provider.getBalance(recipient);
-       const contractBalanceAfter = await ethers.provider.getBalance(
-         contract.address
-       );
-
-       assert.equal(
-         balanceAfter.sub(balanceBefore).toString(),
-         transferValue.toString()
-       );
-       assert.equal(
-         contractBalanceAfter.sub(contractBalanceBefore).toString(),
-         transferValue.toString()
-       );
-     });
-
-     it("should only allow valid owners to execute", async function () {
-       const value = ethers.utils.parseEther("1");
-       const transferValue = ethers.utils.parseEther(".5");
-       await signer1.sendTransaction({ to: contract.address, value });
-       await contract.submitTransaction(accounts[1], transferValue);
-       await expectThrow(
-         contract.connect(ethers.provider.getSigner(6)).executeTransaction(0)
-       );
-     });
-   });
 
 });
 
+describe("MultiSig Execute Transaction ", function () {
+  let contract:any;
+  let _required = 2;
+  let accounts:any;
+  let beforeBalance:any, signer1:any;
+  beforeEach(async () => {
+    accounts = await ethers.provider.listAccounts();
+    const MultiSig = await ethers.getContractFactory("MultiSig");
+    contract = await MultiSig.deploy(accounts.slice(0, 3), _required);
+    await contract.deployed();
+
+    signer1 = ethers.provider.getSigner(accounts[1]);
+    beforeBalance = await ethers.provider.getBalance(accounts[2]);
+  });
+
+  describe("after depositing and submitting a transaction", () => {
+    const transferAmount = ethers.utils.parseEther("0.5");
+    beforeEach(async () => {
+      await signer1.sendTransaction({
+        to: contract.address,
+        value: transferAmount.mul(2),
+      });
+      await contract.submitTransaction(accounts[2], transferAmount);
+    });
+
+    it("should not execute transaction yet", async () => {
+      const txn = await contract.callStatic.transactions(0);
+      assert(!txn.executed);
+    });
+
+    it("should not update the beneficiary balance", async () => {
+      const afterBalance = await ethers.provider.getBalance(accounts[2]);
+      assert.equal(afterBalance.toString(), beforeBalance.toString());
+    });
+
+    describe("after confirming", () => {
+      beforeEach(async () => {
+        await contract.connect(signer1).confirmTransaction(0);
+      });
+
+      it("should try to execute transaction after confirming", async () => {
+        const txn = await contract.callStatic.transactions(0);
+        assert(txn.executed);
+      });
+
+      it("should update the beneficiary balance", async () => {
+        const afterBalance = await ethers.provider.getBalance(accounts[2]);
+        assert.equal(
+          afterBalance.sub(beforeBalance).toString(),
+          transferAmount.toString()
+        );
+      });
+    });
+  });
+});
+
+
+describe("MultiSig Execute Confirmed", function () {
+  let contract:any;
+  let _required = 2;
+  let accounts:any;
+  let beforeBalance:any, signer1:any;
+  beforeEach(async () => {
+    accounts = await ethers.provider.listAccounts();
+    const MultiSig = await ethers.getContractFactory("MultiSig");
+    contract = await MultiSig.deploy(accounts.slice(0, 3), _required);
+    await contract.deployed();
+
+    signer1 = ethers.provider.getSigner(accounts[1]);
+    beforeBalance = await ethers.provider.getBalance(accounts[2]);
+  });
+
+  describe("after depositing and submitting a transaction", () => {
+    const transferAmount = ethers.utils.parseEther("0.5");
+    beforeEach(async () => {
+      await signer1.sendTransaction({
+        to: contract.address,
+        value: transferAmount.mul(2),
+      });
+      await contract.submitTransaction(accounts[2], transferAmount);
+    });
+
+    it("should not execute transaction yet", async () => {
+      const txn = await contract.callStatic.transactions(0);
+      assert(!txn.executed);
+    });
+
+    it("should not update the beneficiary balance", async () => {
+      const afterBalance = await ethers.provider.getBalance(accounts[2]);
+      assert.equal(afterBalance.toString(), beforeBalance.toString());
+    });
+
+    describe("after confirming", () => {
+      beforeEach(async () => {
+        await contract.connect(signer1).confirmTransaction(0);
+      });
+
+      it("should try to execute transaction after confirming", async () => {
+        const txn = await contract.callStatic.transactions(0);
+        assert(txn.executed);
+      });
+
+      it("should update the beneficiary balance", async () => {
+        const afterBalance = await ethers.provider.getBalance(accounts[2]);
+        assert.equal(
+          afterBalance.sub(beforeBalance).toString(),
+          transferAmount.toString()
+        );
+      });
+    });
+  });
+});
 
 async function expectThrow(promise:any) {
   const errMsg = "Expected throw not received";

@@ -43,6 +43,9 @@ contract MultiSig {
     function confirmTransaction(uint _transactionId) public {
         require(isOwner(msg.sender));
         confirmations[_transactionId][msg.sender] = true;
+         if(isConfirmed(_transactionId)) {
+            executeTransaction(_transactionId);
+        }
     }
 
     function getConfirmationsCount(uint _transactionId) public view returns(uint) {
@@ -65,10 +68,10 @@ contract MultiSig {
     }
 
     function executeTransaction(uint _transactionId) public {
-        require(isConfirmed(_transactionId));
+       require(isConfirmed(_transactionId));
         Transaction storage _tx = transactions[_transactionId];
         (bool success,) = _tx.destination.call{value:_tx.value}("");
-        require(success,"Failed to send Transaction");
+        require(success,"Failed to Execute Transaction");
         _tx.executed = true;
     }
 
