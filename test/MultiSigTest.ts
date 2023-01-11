@@ -86,41 +86,6 @@ describe("MultiSig", function () {
       );
     });
   
-  
-
-  describe("Add Transaction Tests", function () {
-       let _required = 2;
-     beforeEach(async () => {
-       accounts = await ethers.provider.listAccounts();
-       const MultiSig = await ethers.getContractFactory("MultiSig");
-       contract = await MultiSig.deploy(accounts.slice(0, 3), _required);
-       await contract.deployed();
-     });
-
-     it("should create a new Transaction", async function () {
-       await contract.addTransaction(accounts[1], 100);
-
-       let tx = await contract.callStatic.transactions;
-       let address = tx[0];
-       assert.notEqual(address, zero);
-     });
-
-     it("should keep count of the amount of transactions", async function () {
-       await contract.addTransaction(accounts[1], 100);
-
-       let txCount = await contract.callStatic.transactionCount();
-       assert.equal(txCount.toNumber(), 1);
-     });
-
-     it("should return a transaction id", async function () {
-       await contract.addTransaction(accounts[1], 100);
-
-       let txId = await contract.callStatic.addTransaction(accounts[1], 100);
-
-       assert.equal(txId.toNumber(), 1);
-     });
-  });
-  
   it('should define a confirmations mapping', async function () {
     const confirmations = abi.filter((x: any) => x.name === "confirmations")[0];
     assert(confirmations, error);
@@ -129,57 +94,37 @@ describe("MultiSig", function () {
     assert.deepEqual(confirmations.outputs.map((x: any) => x.type), ["bool"])
   });
 
- describe("after creating the first transaction", function () {
+ describe("Submit Transaction Tests", function () {
+   let _required = 2;
    beforeEach(async () => {
-     await contract.addTransaction(accounts[1], 100);
-     await contract.confirmTransaction(0);
+     accounts = await ethers.provider.listAccounts();
+     const MultiSig = await ethers.getContractFactory("MultiSig");
+     contract = await MultiSig.deploy(accounts.slice(0, 3), _required);
+     await contract.deployed();
    });
 
-   it("should confirm the transaction", async function () {
+   it("should add a transaction", async function () {
+     await contract.submitTransaction(accounts[1], 100);
+     let tx = await contract.callStatic.transactions(0);
+     let address = tx[0];
+     assert.notEqual(address, zero);
+   });
+
+   it("should confirm a transaction", async function () {
+     await contract.submitTransaction(accounts[1], 100);
+
      let confirmed = await contract.callStatic.getConfirmationsCount(0);
      assert.equal(confirmed, 1);
    });
 
-   describe("after creating the second transaction", function () {
-     beforeEach(async () => {
-       await contract.addTransaction(accounts[1], 100);
-       await contract.confirmTransaction(1);
-       await contract
-         .connect(ethers.provider.getSigner(accounts[1]))
-         .confirmTransaction(1);
-     });
-
-     it("should confirm the transaction twice", async function () {
-       let confirmed = await contract.callStatic.getConfirmationsCount(1);
-       assert.equal(confirmed, 2);
-     });
+   it("should not call addTransaction externally", async function () {
+     assert.equal(
+       contract.addTransaction,
+       undefined,
+       "Did not expect addTransaction to be defined publicly!"
+     );
    });
  });
-  
-  describe("Confirm Transaction Tests", function () {
-    beforeEach(async () => {
-      await contract.addTransaction(accounts[1], 100);
-    });
-
-    describe("from an invalid address", () => {
-      it("should throw an error", async function () {
-        await expectThrow(
-          contract
-            .connect(ethers.provider.getSigner(accounts[3]))
-            .confirmTransaction(0)
-        );
-      });
-    });
-
-    describe("from a valid owner address", () => {
-      it("should not throw an error", async function () {
-        await contract
-          .connect(ethers.provider.getSigner(accounts[2]))
-          .confirmTransaction(0);
-        assert(true);
-      });
-    });
-  });
 
 });
 

@@ -34,10 +34,10 @@ contract MultiSig {
     }
 
 
-    function addTransaction(address _destination,uint _value) public  returns(uint) {
+    function addTransaction(address _destination,uint _value) internal  returns(uint) {
         transactions[transactionCount] =     Transaction(_destination,_value,false);
         transactionCount+=1;
-        return transactionCount -1;
+        return transactionCount - 1;
     }
 
     function confirmTransaction(uint _transactionId) public {
@@ -54,6 +54,11 @@ contract MultiSig {
         }
         return count;
     }
+
+    function submitTransaction(address _destination,uint _value) external  {
+        uint id = addTransaction(_destination,_value);
+        confirmTransaction(id);
+    } 
 
     receive() external payable {}
 }
