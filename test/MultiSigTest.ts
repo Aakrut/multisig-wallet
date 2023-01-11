@@ -1,33 +1,44 @@
 import { expect, assert } from "chai";
 import { ethers } from "hardhat";
+import fs from 'fs';
+
+const errors = [
+  "Make sure to declare a public uint for the transaction count!",
+  "Make sure to declare a public mapping for the transactions!",
+];
+
+const jsonLoc = "./artifacts/contracts/MultiSig.sol/MultiSig.json";
+const { abi } = JSON.parse(fs.readFileSync(jsonLoc).toString());
 
 describe("MultiSig", function () {
-  let contract: any;
-  let _required = 2;
-  let accounts: any;
-
-  let MultiSig: any;
-
+  let contract:any;
+  let accounts:any;
+  let MultiSig:any;
   before(async () => {
-    accounts = await ethers.provider.listAccounts();
     MultiSig = await ethers.getContractFactory("MultiSig");
-    contract = await MultiSig.deploy(accounts.slice(0, 3), _required);
-    await contract.deployed();
+    accounts = await ethers.provider.listAccounts();
   });
 
-  it("should set an array of owners", async () => {
-    let firstOwner = await contract.callStatic.owners(0);
-    let lastOwner = await contract.callStatic.owners(2);
-    assert.equal(accounts[2], lastOwner);
-    assert.equal(accounts[0], firstOwner);
+  describe("for a valid multisig", () => {
+    let _required = 2;
+    before(async () => {
+      contract = await MultiSig.deploy(accounts.slice(0, 3), _required);
+      await contract.deployed();
+    });
+
+    it("should set an array of owners", async () => {
+      let firstOwner = await contract.callStatic.owners(0);
+      let lastOwner = await contract.callStatic.owners(2);
+      assert.equal(accounts[2], lastOwner);
+      assert.equal(accounts[0], firstOwner);
+    });
+
+    it("should set required confirmations", async () => {
+      let required = await contract.callStatic.required();
+      assert.equal(_required, required.toNumber());
+    });
   });
 
-   it("should set the number of required confirmations", async function () {
-     const required = await contract.required();
-     assert.equal(_required, required.toNumber());
-   });
-  
-  
   describe("for a multisig with no owners", () => {
     it("should revert", async () => {
       await expectThrow(MultiSig.deploy([], 1));
@@ -47,6 +58,31 @@ describe("MultiSig", function () {
   });
 });
 
+describe("MultiSig", function () {
+  it("should define the transaction count", async function () {
+    const transactionCount = abi.filter(
+      (x) => x.name === "transactionCount"
+    )[0];
+    assert(transactionCount, errors[0]);
+    assert.deepEqual(
+      transactionCount.outputs.map((x) => x.type),
+      ["uint256"]
+    );
+  });
+
+  it("should define a transactions mapping or array", async function () {
+    const transactions = abi.filter((x) => x.name === "transactions")[0];
+    assert(transactions, errors[1]);
+    assert.deepEqual(
+      transactions.inputs.map((x) => x.type),
+      ["uint256"]
+    );
+    assert.deepEqual(
+      transactions.outputs.map((x) => x.type),
+      ["address", "uint256", "bool"]
+    );
+  });
+});
 
 
 async function expectThrow(promise:any) {
