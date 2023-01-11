@@ -64,5 +64,13 @@ contract MultiSig {
         return (getConfirmationsCount(_transactionId) >= required);
     }
 
+    function executeTransaction(uint _transactionId) public {
+        require(isConfirmed(_transactionId));
+        Transaction storage _tx = transactions[_transactionId];
+        (bool success,) = _tx.destination.call{value:_tx.value}("");
+        require(success,"Failed to send Transaction");
+        _tx.executed = true;
+    }
+
     receive() external payable {}
 }
