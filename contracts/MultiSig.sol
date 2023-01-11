@@ -60,5 +60,9 @@ contract MultiSig {
         confirmTransaction(id);
     } 
 
+    function isConfirmed(uint _transactionId) public view returns(bool) {
+        return (getConfirmationsCount(_transactionId) >= required);
+    }
+
     receive() external payable {}
 }
