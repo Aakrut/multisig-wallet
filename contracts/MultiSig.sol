@@ -14,6 +14,7 @@ contract MultiSig {
     }
 
     mapping(uint => Transaction) public transactions;
+    mapping(uint => mapping(address => bool)) public confirmations;
 
     constructor(address[] memory _owners, uint _confirmations) {
         require(_owners.length > 0);

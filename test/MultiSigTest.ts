@@ -7,6 +7,8 @@ const errors = [
   "Make sure to declare a public mapping for the transactions!",
 ];
 
+const error = "Make sure to declare a public uint for the confirmations!";
+
 const jsonLoc = "./artifacts/contracts/MultiSig.sol/MultiSig.json";
 const { abi } = JSON.parse(fs.readFileSync(jsonLoc).toString());
 
@@ -117,7 +119,16 @@ describe("MultiSig", function () {
 
        assert.equal(txId.toNumber(), 1);
      });
-   });
+  });
+  
+  it('should define a confirmations mapping', async function () {
+    const confirmations = abi.filter((x: any) => x.name === "confirmations")[0];
+    assert(confirmations, error);
+    assert.deepEqual(confirmations.inputs.map((x: any) => x.type), ['uint256', "address"
+    ])
+    assert.deepEqual(confirmations.outputs.map((x: any) => x.type), ["bool"])
+  });
+
 });
 
 
